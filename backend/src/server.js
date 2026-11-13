@@ -1,0 +1,13 @@
+import 'dotenv/config';
+import { sessionSecret } from './session-secret.js';
+import { createStore } from './store.js';
+import { createApp } from './app.js';
+const driver = process.env.DB_DRIVER || 'demo';
+if (!['demo', 'mysql'].includes(driver)) throw new Error('DB_DRIVER must be demo or mysql.');
+if (driver === 'mysql' && !process.env.JWT_SECRET) throw new Error('Set JWT_SECRET in backend/.env before using MySQL.');
+const store = await createStore({ driver, file: new URL('../data/demo.json', import.meta.url) });
+const app = createApp(store, { secret: await sessionSecret(new URL('../data/session.key', import.meta.url)), demoMode: process.env.DEMO_MODE !== 'false' });
+const server = app.listen(Number(process.env.PORT || 5001), '127.0.0.1', () => console.log(`ParkEase API: http://127.0.0.1:${process.env.PORT || 5001} (${driver} storage, simulated payments)`));
+const stop = () => server.close(async () => { await store.close(); process.exit(0); });
+process.on('SIGTERM', stop);
+process.on('SIGINT', stop);

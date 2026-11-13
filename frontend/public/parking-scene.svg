@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 400">
+<defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#c5d6ba" stroke-width=".6"/></pattern><filter id="s"><feDropShadow dx="0" dy="10" stdDeviation="8" flood-opacity=".12"/></filter></defs>
+<rect width="700" height="400" fill="#e7eddb"/><rect width="700" height="400" fill="url(#grid)"/>
+<g transform="translate(330 195) rotate(-25) skewX(15) translate(-240 -125)" filter="url(#s)">
+<rect x="-60" y="-55" width="590" height="370" rx="22" fill="#d6dfce"/><rect x="-20" y="-15" width="510" height="290" rx="14" fill="#657465"/>
+<path d="M-20 125H490" stroke="#f5f4db" stroke-width="2" stroke-dasharray="20 15"/>
+<g fill="none" stroke="#dce4ce" stroke-width="2"><path d="M0 0V90H475V0M0 250V160H475V250"/><path d="M65 0V90M130 0V90M195 0V90M260 0V90M325 0V90M390 0V90M65 250V160M130 250V160M195 250V160M260 250V160M325 250V160M390 250V160"/></g>
+<g fill="#dce4ce" font-family="Arial" font-size="12"><text x="15" y="20">A-01</text><text x="80" y="20">A-02</text><text x="145" y="20">A-03</text><text x="210" y="20">A-04</text><text x="275" y="20">A-05</text><text x="340" y="20">A-06</text></g>
+<g fill="#d2f36b"><rect x="199" y="3" width="57" height="84" rx="3"/><rect x="329" y="163" width="57" height="84" rx="3"/></g>
+<g fill="#f6f8f0" stroke="#b6c0ad" stroke-width="1.5"><rect x="13" y="32" width="40" height="66" rx="10"/><rect x="78" y="163" width="40" height="66" rx="10"/><rect x="143" y="32" width="40" height="66" rx="10"/><rect x="273" y="32" width="40" height="66" rx="10"/><rect x="403" y="163" width="40" height="66" rx="10"/></g>
+<g fill="#31453f"><rect x="17" y="47" width="32" height="21" rx="5"/><rect x="82" y="181" width="32" height="21" rx="5"/><rect x="147" y="47" width="32" height="21" rx="5"/><rect x="277" y="47" width="32" height="21" rx="5"/><rect x="407" y="181" width="32" height="21" rx="5"/></g>
+<g fill="#a8bca0"><circle cx="-42" cy="15" r="24"/><circle cx="510" cy="245" r="26"/><circle cx="440" cy="-35" r="25"/><circle cx="10" cy="290" r="23"/></g>
+</g>
+<g transform="translate(378 40)"><path d="M0 25a29 29 0 1 1 58 0c0 24-29 48-29 48S0 49 0 25" fill="#213d30"/><text x="29" y="36" fill="#d2f36b" text-anchor="middle" font-family="Arial" font-size="33" font-weight="bold">P</text></g>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "@parkease/frontend", "private": true,
+  "scripts": { "dev": "next dev --webpack --hostname 127.0.0.1", "build": "next build --webpack", "start": "next start --hostname 127.0.0.1" },
+  "dependencies": { "next": "^16.0.0", "react": "^19.2.0", "react-dom": "^19.2.0", "lucide-react": "^0.468.0", "leaflet": "^1.9.4", "react-leaflet": "^5.0.0", "qrcode": "^1.5.4" },
+  "devDependencies": { "tailwindcss": "^4.1.0", "@tailwindcss/postcss": "^4.1.0" }
+}
