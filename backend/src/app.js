@@ -236,6 +236,14 @@ export function createApp(store, { secret, demoMode = true } = {}) {
     if (req.user.role !== 'ADMIN' && (body.status || f.operatorId !== req.user.id)) fail(403, 'You cannot update this facility.');
     res.json(await store.transaction(null, tx => tx.update('facilities', f.id, body)));
   });
+  app.get('/api/manage/facilities/:id/slots', auth('OPERATOR', 'ADMIN'), async (req, res) => {
+    const vehicleType = z.enum(['CAR', 'BIKE', 'EV']).default('CAR').parse(req.query.vehicleType);
+    const facility = await store.get('facilities', req.params.id);
+    if (!facility || (req.user.role !== 'ADMIN' && facility.operatorId !== req.user.id)) fail(404, 'Facility not found.');
+    const bookings = await store.all('bookings');
+    const now = new Date().toISOString();
+    res.json((await store.all('slots')).filter(s => s.facilityId === facility.id && s.vehicleType === vehicleType).map(s => ({ ...s, status: s.blocked ? 'BLOCKED' : bookings.some(b => b.slotId === s.id && (b.status === 'ACTIVE' || (b.status === 'CONFIRMED' && b.endAt > now))) ? 'RESERVED' : 'AVAILABLE' })));
+  });
   app.patch('/api/manage/slots/:id', auth('OPERATOR', 'ADMIN'), async (req, res) => {
     const { blocked } = z.object({ blocked: z.boolean() }).parse(req.body);
     const slot = await store.get('slots', req.params.id);
@@ -243,7 +251,7 @@ export function createApp(store, { secret, demoMode = true } = {}) {
     const f = await store.get('facilities', slot.facilityId);
     if (req.user.role !== 'ADMIN' && f.operatorId !== req.user.id) fail(403, 'You cannot update this space.');
     res.json(await store.transaction(slot.id, async tx => {
-      if (blocked && (await tx.all('bookings')).some(b => b.slotId === slot.id && ['ACTIVE', 'CONFIRMED'].includes(b.status) && b.endAt > new Date().toISOString())) fail(409, 'A reserved space cannot be blocked.');
+      if (blocked && (await tx.all('bookings')).some(b => b.slotId === slot.id && (b.status === 'ACTIVE' || (b.status === 'CONFIRMED' && b.endAt > new Date().toISOString())))) fail(409, 'A reserved space cannot be blocked.');
       return tx.update('slots', slot.id, { blocked: blocked ? 1 : 0 });
     }));
   });

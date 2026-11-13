@@ -69,6 +69,16 @@ The homepage includes a photographic hero, responsive navigation, destination se
 
 Operator registration and sign-in are available at `/operator/register` and `/operator/sign-in`. New operators start with an empty dashboard and can submit facility name/address, coordinates, rate, and amenities. Each submission gets 36 demo bays and remains PENDING until an administrator approves it. The API derives facility ownership from the session; an operator cannot self-approve or manage another owner's facilities.
 
+## Operator workspace
+
+The business dashboard has separate **Your facilities** and **Reservations** tabs with server pagination (5/10/25/50 rows), search, status filters, and sorting. Facilities show total bays, checked-in vehicles, maintenance bays, hourly rate, amenities, and approval state. Open **Manage** to edit the hourly rate or manage bays. Operators cannot approve their own listing.
+
+Reservations can be filtered by facility, vehicle type, status, and local arrival-date range. Details show the driver, bay, pricing/discount/fee breakdown, payment status, check-in/out times, QR pass, and allowed gate actions. Booking-ID lookup works directly against the owned record, regardless of the selected table page. Summary/table data refresh every 15 seconds; background refresh preserves the table and open detail panel.
+
+Bay management has independent Car/Bike/EV selection and matching icons. Inventory includes pending/suspended owned facilities; public discovery still requires approval. Checked-in vehicles and future reservations protect their bays from maintenance. An overdue active visit remains protected until checkout. Bike icons also appear in driver bay selection and booking cards; EV bays use the charging icon.
+
+New authenticated endpoints: `GET /api/operator/overview`, `/api/operator/facility-options`, `/api/operator/manage/facilities`, `/api/operator/manage/reservations`, `/api/operator/reservations/:id`, and `/api/manage/facilities/:id/slots?vehicleType=CAR|BIKE|EV`. Operator filtering is enforced before pagination, aggregation, and lookup. Foreign facilities/reservations are inaccessible. Shared integration tests cover pagination over 250 reservations, combined filters, ownership boundaries, and maintenance protection. No schema migration is needed for these workspace changes.
+
 ## Reservations, pricing, and checkout
 
 - Date-specific availability and overlap checks are enforced by the API and transaction, including concurrent booking/extension attempts. Pending, suspended, blocked, or incompatible bays cannot be reserved.
