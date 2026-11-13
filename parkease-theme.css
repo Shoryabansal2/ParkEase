@@ -1,32 +1,32 @@
-/* ParkEase visual re-skin: typography and palette only.
+/* ParkEase reference re-skin: pale editorial pages and a dark footer.
    Existing selectors, content, layout rules, and behavior are preserved. */
 :root {
   --theme-font: Inter, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
   --theme-navy: #0B1222;
-  --theme-section: #17223A;
-  --theme-card: #EDF1F8;
-  --theme-blue: #1A6BFF;
-  --theme-teal: #19C9B8;
+  --theme-section: #1F2D3D;
+  --theme-card: #FFFFFF;
+  --theme-blue: #0078F8;
+  --theme-teal: #08BCAF;
   --theme-success: #3DDC6A;
   --theme-orange: #FF5A0F;
-  --theme-gradient: linear-gradient(90deg, #1A6BFF, #19C9B8);
-  --theme-heading: #FFFFFF;
-  --theme-body: #C3CBDB;
-  --theme-muted: #C3CBDB;
-  --theme-input: #1F2B45;
-  --theme-input-border: #4A5877;
-  --theme-placeholder: #9AA6BF;
-  --ink: #FFFFFF;
-  --muted: #C3CBDB;
+  --theme-gradient: linear-gradient(90deg, #0078F8, #08BCAF);
+  --theme-heading: #0B1328;
+  --theme-body: #1E2638;
+  --theme-muted: #526176;
+  --theme-input: #FFFFFF;
+  --theme-input-border: #C4D0DF;
+  --theme-placeholder: #7B899B;
+  --ink: #0B1328;
+  --muted: #526176;
   --green: #1A6BFF;
   --lime: #19C9B8;
-  --line: #2C3A58;
-  --paper: #0B1222;
-  --white: #EDF1F8;
+  --line: #D5DFE8;
+  --paper: #EDF2F6;
+  --white: #FFFFFF;
 }
 body {
-  background: #0B1222;
-  color: #C3CBDB;
+  background: #EDF2F6;
+  color: #1E2638;
   font-family: var(--theme-font);
   font-size: 14px;
   font-weight: 400;
@@ -39,7 +39,7 @@ body button, body input, body select, body textarea, body .leaflet-container {
 body :is(h1, h2, h3, h4, h5, h6) {
   color: var(--theme-heading);
   font-family: var(--theme-font);
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: -0.02em;
   font-style: normal;
   text-transform: none;
@@ -53,7 +53,7 @@ body .membership-intro h1 em {
 }
 body .hero h1, body .hero-refresh h1, body .membership-intro h1,
 body .page-heading h1, body .access-panel h1, body .information-page h1 {
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 body .section-heading h2, body .home-section-heading h2,
@@ -61,12 +61,12 @@ body .operator-copy h2, body .home-vip-banner h2,
 body .membership-plan h2, body .modal h2, body .console-heading h1,
 body .console-section-title h2, body .console-drawer h2,
 body .wallet-title h2, body .facility-title h3, body .how-step h3 {
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 body .brand, body .nav-brand, body .site-footer .brand {
   font-family: var(--theme-font);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--theme-heading);
 }
@@ -111,47 +111,47 @@ body .booking-calendar, body .console-workspace, body .console-stats > div,
 body .console-drawer, body .sitemap-links > a, body .operator-onboarding {
   --theme-heading: #0B1328;
   --theme-body: #1E2638;
-  --theme-muted: #4A5877;
+  --theme-muted: #526176;
   --theme-input: #FFFFFF;
-  --theme-input-border: #B7C4DB;
-  --theme-placeholder: #66738E;
+  --theme-input-border: #C4D0DF;
+  --theme-placeholder: #7B899B;
   --ink: #0B1328;
-  --muted: #4A5877;
-  --line: #CCD5E5;
-  background: #EDF1F8;
+  --muted: #526176;
+  --line: #D5DFE8;
+  background: #FFFFFF;
   color: #1E2638;
-  border-color: #CCD5E5;
+  border-color: #D5DFE8;
   border-radius: 8px;
 }
 body .site-header, body .topbar { border-radius: 0; }
-body .site-header { box-shadow: 0 1px 12px #0B12221A; }
+body .site-header { box-shadow: none; }
 body .hero.hero-refresh, body .facility-card, body .review-card,
 body .panel, body .console-workspace {
-  box-shadow: 0 8px 24px #0208171A;
+  box-shadow: none;
 }
 body .facility-card:hover, body .facility-card.selected-card,
 body .sitemap-links > a:hover {
   border-color: #1A6BFF;
   box-shadow: 0 6px 22px #1A6BFF26;
 }
-/* Dark feature sections and footer. */
+/* Pale blue feature sections; the footer has a separate dark treatment. */
 body .home-vip-banner, body .vip-plan, body .membership-emblem,
-body .console-stats > div:first-child, body .site-footer, body .toast {
-  --theme-heading: #FFFFFF;
-  --theme-body: #C3CBDB;
-  --theme-muted: #C3CBDB;
-  --theme-input: #1F2B45;
-  --theme-input-border: #4A5877;
-  --theme-placeholder: #9AA6BF;
-  --ink: #FFFFFF;
-  --muted: #C3CBDB;
-  --line: #2C3A58;
-  background: #17223A;
-  color: #FFFFFF;
-  border-color: #2C3A58;
+body .console-stats > div:first-child {
+  --theme-heading: #0B1328;
+  --theme-body: #1E2638;
+  --theme-muted: #526176;
+  --theme-input: #FFFFFF;
+  --theme-input-border: #C4D0DF;
+  --theme-placeholder: #7B899B;
+  --ink: #0B1328;
+  --muted: #526176;
+  --line: #D5DFE8;
+  background: #E2EDF7;
+  color: #1E2638;
+  border-color: #CFDCE9;
   border-radius: 8px;
 }
-body .membership-emblem { box-shadow: 12px 12px 0 #CCD5E5; }
+body .membership-emblem { box-shadow: none; }
 body .home-vip-banner .eyebrow, body .vip-plan .plan-kicker,
 body .vip-banner-perks > span, body .membership-emblem small {
   color: #19C9B8;
@@ -159,19 +159,18 @@ body .vip-banner-perks > span, body .membership-emblem small {
 body .site-footer .brand { color: #FFFFFF; }
 body .site-footer .brand-symbol > span { border-color: #17223A; }
 body .vip-banner-symbol {
-  background: #1F2B45;
-  border-color: #4A5877;
-  color: #19C9B8;
+  background: #D5E6F3;
+  border-color: #B8D1E4;
+  color: #0078F8;
   border-radius: 8px;
 }
 body .hero h1 > span, body .hero-refresh h1 > span,
-body .membership-intro h1 em { color: #1A6BFF; }
+body .membership-intro h1 em { color: #0B1328; }
 /* Buttons retain their sizes, placement, disabled states, and handlers. */
-body .btn, body .reserve-button, body .console-row-action,
-body .footer-find, body .site-footer .footer-contact-column > .footer-membership {
-  background: #FF5A0F;
-  border-color: #FF5A0F;
-  color: #FFFFFF;
+body .btn, body .reserve-button, body .console-row-action, body .footer-find {
+  background: #FFFFFF;
+  border-color: #C4D0DF;
+  color: #0B1328;
   border-radius: 5px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -185,12 +184,11 @@ body .site-actions > .btn {
   color: #FFFFFF;
   border-radius: 5px;
 }
-body .btn:hover, body .reserve-button:hover, body .console-row-action:hover,
-body .footer-find:hover, body .site-footer .footer-contact-column > .footer-membership:hover {
-  background: #E94C06;
-  border-color: #E94C06;
-  color: #FFFFFF;
-  box-shadow: 0 4px 14px #FF5A0F33;
+body .btn:hover, body .reserve-button:hover, body .console-row-action:hover, body .footer-find:hover {
+  background: #E1EAF4;
+  border-color: #96B3D2;
+  color: #0B1328;
+  box-shadow: none;
 }
 body .btn.primary:hover, body .btn.dark:hover, body .hero-buttons > .btn:hover,
 body .search-bar .search-button:hover, body .map-selected button:hover,
@@ -247,7 +245,7 @@ body .filter-chip, body .duration-presets button {
   border-radius: 5px;
   text-transform: none;
 }
-body .tabs button { color: #C3CBDB; }
+body .tabs button { color: #526176; }
 body .view-toggle .chosen, body .vehicle-toggle .chosen,
 body .auth-role-selector > button[aria-selected=true],
 body .filter-chip.chosen, body .duration-presets button.chosen {
@@ -260,10 +258,10 @@ body .filter-chip, body .duration-presets button {
   background: #EDF1F8;
   border-color: #CCD5E5;
 }
-body .tabs, body .tabs button.chosen { border-color: #2C3A58; }
-body .tabs button.chosen { color: #19C9B8; border-bottom-color: #19C9B8; }
-body .sort-control, body .sort-control select { color: #C3CBDB; }
-body .sort-control select { background: #1F2B45; border-radius: 4px; }
+body .tabs, body .tabs button.chosen { border-color: #D5DFE8; }
+body .tabs button.chosen { color: #0078F8; border-bottom-color: #0078F8; }
+body .sort-control, body .sort-control select { color: #526176; }
+body .sort-control select { background: #FFFFFF; border-radius: 4px; }
 body select option { background: var(--theme-input); color: var(--theme-heading); }
 /* Existing card copy, labels, prices, and muted metadata. */
 body .hero-refresh .hero-copy > p, body .hero p,
@@ -322,14 +320,14 @@ body .pass-id, body .plan-price, body .vip-banner-action > strong {
 body .home-section-heading h2, body .operator-copy h2,
 body .how-step h3, body .information-page h1,
 body .information-sections h2 { color: var(--theme-heading); }
-body .home-sections .step-top { border-color: #2C3A58; color: #19C9B8; }
-body .step-top > span { color: #19C9B8; font-weight: 750; letter-spacing: -0.02em; }
-body .how-step { border-color: #2C3A58; }
+body .home-sections .step-top { border-color: #D5DFE8; color: #0078F8; }
+body .step-top > span { color: #19C9B8; font-weight: 700; letter-spacing: -0.02em; }
+body .how-step { border-color: #D5DFE8; }
 body .operator-cta > a:not(.btn), body .hero-buttons > a,
 body .auth-alternate button, body .membership-link-note button,
 body .membership-profile-link, body .checkout-secondary > button,
 body .payment-details-heading button { color: #1A6BFF; }
-body .operator-cta > a:not(.btn) { color: #19C9B8; }
+body .operator-cta > a:not(.btn) { color: #0078F8; }
 /* Inputs: dark by default; white within the pale surfaces above. */
 body input, body select, body textarea,
 body .console-toolbar select, body .console-pagination select,
@@ -483,17 +481,17 @@ body .pass-bay, body .demo-login, body .rate-form label,
 body .operator-preview-heading, body .calendar-week,
 body .booking-calendar > p, body .extension-combined,
 body .reservation-mark, body .management-row + .management-row { border-color: #CCD5E5; }
-body .filter-divider, body .sidebar-divider, body .topbar-separator { background: #2C3A58; }
+body .filter-divider, body .sidebar-divider, body .topbar-separator { background: #D5DFE8; }
 body .error-panel, body .extension-error, body .checkout-error,
 body .console-error, body .console-cancel-confirm {
   background: #FFE8DC; border-color: #F7BFA3; color: #A53508; border-radius: 8px;
 }
 body .field-error, body .payment-field .field-error, body .duration-error { color: #A53508; }
 body .payment-field.invalid input { border-color: #FF5A0F; }
-body .empty { background: #17223A; border-color: #4A5877; color: #C3CBDB; border-radius: 8px; }
-body .empty h3 { color: #FFFFFF; }
-body .empty p, body .map-loading { color: #C3CBDB; }
-body .skeleton { background: linear-gradient(100deg, #17223A 35%, #263652 50%, #17223A 65%); border-radius: 8px; }
+body .empty { background: #E5EDF5; border-color: #C4D0DF; color: #526176; border-radius: 8px; }
+body .empty h3 { color: #0B1328; }
+body .empty p, body .map-loading { color: #526176; }
+body .skeleton { background: linear-gradient(100deg, #E1E9F1 35%, #F5F8FB 50%, #E1E9F1 65%); border-radius: 8px; }
 body .toast { box-shadow: 0 8px 30px #02081766; }
 body .toast > svg { color: #3DDC6A; }
 body .modal-backdrop, body .console-drawer-backdrop, body .nav-scrim { background: #0B122299; }
@@ -508,15 +506,15 @@ body .comparison-scroll td:last-child { color: #174BB2; }
 body .comparison-scroll tbody th svg, body .membership-disclosures svg,
 body .membership-plan li svg, body .vip-plan li svg { color: #1A6BFF; }
 body .vip-plan li svg { color: #19C9B8; }
-body .management-console { --console-line: #CCD5E5; --console-muted: #C3CBDB; color: #C3CBDB; }
-body .console-heading h1 { color: #FFFFFF; }
+body .management-console { --console-line: #D5DFE8; --console-muted: #526176; color: #1E2638; }
+body .console-heading h1 { color: #0B1328; }
 body .console-heading h1 span { color: #19C9B8; }
-body .console-heading p { color: #C3CBDB; }
+body .console-heading p { color: #526176; }
 body .console-stats > div > span, body .console-stats small { color: #4A5877; }
-body .console-stats strong { color: #0B1328; font-weight: 750; letter-spacing: -0.02em; }
-body .console-stats > div:first-child strong { color: #FFFFFF; }
-body .console-stats > div:first-child > span, body .console-stats > div:first-child small { color: #C3CBDB; }
-body .console-workspace { --console-muted: #4A5877; box-shadow: 0 10px 30px #02081726; }
+body .console-stats strong { color: #0B1328; font-weight: 700; letter-spacing: -0.02em; }
+body .console-stats > div:first-child strong { color: #0B1328; }
+body .console-stats > div:first-child > span, body .console-stats > div:first-child small { color: #526176; }
+body .console-workspace { --console-muted: #4A5877; box-shadow: none; }
 body .console-tabs, body .console-table thead, body .console-pagination { background: #E0E8F5; border-color: #CCD5E5; }
 body .console-tabs > button { color: #4A5877; }
 body .console-tabs > button.chosen { color: #174BB2; border-bottom-color: #1A6BFF; font-weight: 700; }
@@ -540,7 +538,7 @@ body .console-pagination button { background: #EDF1F8; border-color: #B7C4DB; co
 body .console-date-filters button { background: #D8E6FF; border-color: #B7CEFA; color: #174BB2; border-radius: 5px; }
 body .console-details > div, body .console-drawer > header { border-color: #CCD5E5; }
 body .console-details dd { color: #0B1328; }
-body .console-drawer { box-shadow: -12px 0 50px #0208174D; }
+body .console-drawer { box-shadow: -12px 0 50px #0B132826; }
 /* Dark footer and demo bar keep all existing links and copy. */
 body .site-footer h3 { color: #FFFFFF; font-weight: 700; letter-spacing: -0.01em; }
 body .footer-brand-column > p, body .footer-link-column > a,
@@ -570,10 +568,46 @@ body .membership-confirm p, body .support-ticket p {
 }
 body .home-section-heading .eyebrow, body .operator-copy .eyebrow,
 body .management-console > .console-heading .eyebrow,
-body .information-page > .eyebrow { color: #19C9B8; }
+body .information-page > .eyebrow { color: #526176; }
 body .search-bar label > span, body .search-bar > .duration > span,
 body .preview-status, body .facility-checks { text-transform: lowercase; }
 body .site-footer .footer-contact-column,
 body .site-footer .footer-bottom, body .site-footer .footer-membership {
   border-color: #2C3A58;
 }
+
+body .discovery .eyebrow.muted { color: #526176; }
+body .demo-location { color: var(--theme-muted); }
+body .map-top-label > span:last-child, body .operator-preview-heading small { color: #4A5877; }
+/* New reference: pale editorial pages; only the footer uses a dark surface. */
+body .site-header, body .topbar, body .hero.hero-refresh, body .membership-intro {
+ background:#EDF2F6; border-color:#D5DFE8;
+}
+body .hero.hero-refresh { box-shadow:none; }
+body .hero.hero-refresh h1 { font-size:clamp(36px,4vw,54px); font-weight:700; letter-spacing:-0.02em; }
+body .hero-refresh .hero-copy > p { color:#1E2638; font-size:13px; }
+body .eyebrow, body .eyebrow.muted, body .hero-refresh .eyebrow { color:#526176; letter-spacing:0; }
+body .brand-dot, body .heading-dot, body .home-section-heading h2 > span, body .console-heading h1 span { color:#0078F8; }
+body .step-top > span { color:#0078F8; }
+body .home-vip-banner .eyebrow, body .vip-plan .plan-kicker, body .vip-banner-perks > span,
+body .membership-emblem small, body .vip-plan li svg { color:#126A87; }
+body .site-footer, body .toast {
+ --theme-heading:#FFFFFF; --theme-body:#C3CBDB; --theme-muted:#C3CBDB;
+ --theme-input:#243449; --theme-input-border:#65758B; --theme-placeholder:#A7B3C4;
+ --ink:#FFFFFF; --muted:#C3CBDB; --line:#35465B;
+ background:#1F2D3D; color:#FFFFFF; border-color:#35465B; border-radius:8px;
+}
+body .site-footer .brand { color:#FFFFFF; }
+body .site-footer .brand-symbol > span { border-color:#1F2D3D; }
+body .site-footer .footer-bottom, body .site-footer .footer-contact-column { border-color:#35465B; }
+body .site-footer .footer-contact-column > .footer-membership {
+ background:#FF5A0F; color:#FFFFFF; border-color:#FF5A0F; border-radius:5px;
+}
+body .site-footer .footer-contact-column > .footer-membership:hover { background:#E94C06; border-color:#E94C06; }
+body .site-footer .footer-contact-column > .footer-membership svg { color:#FFFFFF; }
+body .site-footer .footer-find { background:transparent; color:#FFFFFF; border-color:#65758B; }
+body .footer-socials > button { background:#243449; border-color:#65758B; color:#C3CBDB; }
+body .demo-bar { background:#EDF2F6F5; border-color:#D5DFE8; color:#526176; }
+body .demo-bar strong, body .demo-bar small, body .demo-storage { color:#526176; }
+body .demo-bar button { background:#FFFFFF; border-color:#C4D0DF; color:#526176; }
+body .demo-bar button.chosen { background:#0078F8; border-color:#0078F8; color:#FFFFFF; }

@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 :root{--ink:#23352b;--muted:#879087;--green:#254b37;--lime:#d5ef88;--line:#e7eae3;--paper:#fbfcf8;--white:#fff;--sidebar:230px}
