@@ -11,6 +11,9 @@ try {
   for (const statement of (await readFile(new URL('./schema.sql', import.meta.url), 'utf8')).split(';').filter(s => s.trim())) await conn.query(statement);
   // Additive migration for existing installations. No users or bookings are reset.
   for (const [table, column, definition] of [
+    ['users', 'operatorTier', "VARCHAR(16) NOT NULL DEFAULT 'STANDARD'"],
+    ['users', 'operatorExpiresAt', 'VARCHAR(30) NULL'],
+    ['bookings', 'pricingSnapshot', 'TEXT NULL'],
     ['users', 'status', "VARCHAR(16) NOT NULL DEFAULT 'ACTIVE'"],
     ['users', 'sessionVersion', 'INT NOT NULL DEFAULT 0'],
     ['users', 'createdAt', 'VARCHAR(30) NULL'],

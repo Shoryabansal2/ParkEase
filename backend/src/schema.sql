@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(190) NOT NULL UNIQUE, passwordHash VARCHAR(255) NOT NULL,
   role ENUM('DRIVER','OPERATOR','ADMIN') NOT NULL DEFAULT 'DRIVER', vehicle VARCHAR(30) NOT NULL DEFAULT '',
   membershipTier VARCHAR(16) NOT NULL DEFAULT 'STANDARD', membershipExpiresAt VARCHAR(30) NULL,
-  status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE', sessionVersion INT NOT NULL DEFAULT 0, createdAt VARCHAR(30) NULL
+  status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE', sessionVersion INT NOT NULL DEFAULT 0, createdAt VARCHAR(30) NULL,
+  operatorTier VARCHAR(16) NOT NULL DEFAULT 'STANDARD', operatorExpiresAt VARCHAR(30) NULL
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS facilities (
   id VARCHAR(64) PRIMARY KEY, name VARCHAR(150) NOT NULL, address VARCHAR(255) NOT NULL,
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   paymentStatus VARCHAR(30) NOT NULL, createdAt VARCHAR(30) NOT NULL,
   checkedInAt VARCHAR(30) NULL, checkedOutAt VARCHAR(30) NULL,
   membershipTier VARCHAR(16) NOT NULL DEFAULT 'STANDARD', baseTotal DECIMAL(10,2) NULL,
-  discountAmount DECIMAL(10,2) NOT NULL DEFAULT 0, convenienceFee DECIMAL(10,2) NOT NULL DEFAULT 0,
+  discountAmount DECIMAL(10,2) NOT NULL DEFAULT 0, convenienceFee DECIMAL(10,2) NOT NULL DEFAULT 0, pricingSnapshot TEXT NULL,
   FOREIGN KEY (userId) REFERENCES users(id), FOREIGN KEY (facilityId) REFERENCES facilities(id),
   FOREIGN KEY (slotId) REFERENCES slots(id), INDEX booking_availability(slotId,status,startAt,endAt)
 ) ENGINE=InnoDB;
@@ -54,4 +55,11 @@ CREATE TABLE IF NOT EXISTS payments (
   method VARCHAR(10) NOT NULL, status VARCHAR(30) NOT NULL,
   bookingId VARCHAR(64) NULL, createdAt VARCHAR(30) NOT NULL,
   FOREIGN KEY (userId) REFERENCES users(id), INDEX payment_booking(bookingId)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS pricingRules (
+  id VARCHAR(64) PRIMARY KEY, facilityId VARCHAR(64) NOT NULL,
+  name VARCHAR(80) NOT NULL, days VARCHAR(30) NOT NULL,
+  startMinute INT NOT NULL, endMinute INT NOT NULL, rate DECIMAL(10,2) NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE, createdAt VARCHAR(30) NOT NULL,
+  FOREIGN KEY (facilityId) REFERENCES facilities(id), INDEX pricing_facility(facilityId,enabled)
 ) ENGINE=InnoDB;

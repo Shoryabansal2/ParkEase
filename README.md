@@ -164,6 +164,31 @@ All protected requests use `Authorization: Bearer <token>`. Password hashes and 
 
 Management lists accept `page`, `pageSize` (5–50), `q`, `status`, `role`, and `sort`. Reservations also accept `from`, `to`, `timezoneOffset`, and `userId`. Responses contain `items`, `total`, `page`, `pages`, and `pageSize`. Dates in storage/API use ISO 8601 instants; display uses the browser's local timezone.
 
+## Parking discovery pagination
+
+The homepage shows four facility cards per page, with numbered pages, Previous/Next controls, and a result range. Changing search, filters, sorting, vehicle, or booking window resets to page one. All matching facilities remain on the map; selecting a marker opens the corresponding results page.
+
+## Operator Pro
+
+Open `/operator/pro` from the operator navigation or business dashboard. Operator Pro costs **₹1,499 for one calendar month**, uses the existing simulated UPI/card checkout, and has no automatic renewal. Its entitlement and receipts are separate from Driver VIP. Standard facility, bay, reservation, and gate tools remain available without Pro.
+
+- **Advanced analytics:** facility and 1–90 day filters, daily parking value, reservation counts, peak arrival hours, vehicle mix, reserved bay utilisation, and daily cancellations. Every chart includes numbered axes, units, gridlines, and hover/tap/keyboard value readouts. Cancellations use the reserved arrival date, with a total cancellation-rate summary. Values exclude cancellations; parking value excludes convenience fees. Collections count successful booking-linked receipts by payment date, while reservation figures use arrival dates. Utilisation estimates reserved time against current non-maintenance bay capacity, not live sensor occupancy.
+- **Overstay alerts:** paginated, most-overdue-first alerts for owned facilities' checked-in vehicles past their reserved departure, refreshing every 15 seconds. Viewing the pass opens existing gate controls. Checkout clears the alert; no fine or automatic checkout is applied.
+- **Scheduled pricing:** weekday/weekend/custom-day bands in IST, with editing and pause/enable controls. Enabled bands at a facility cannot overlap; each lasts at least 15 minutes. Split overnight bands into two rules, using 24:00 for midnight. Car/EV use the configured hourly rate; bikes use half rounded to a whole rupee. Bookings crossing bands are prorated per segment, then driver discounts and convenience fees apply. Discovery prices show the selected window's effective hourly rate. The server recalculates checkout totals and rejects stale quotes. Existing reservations and extensions retain their agreed effective rate.
+- **CSV/PDF reports:** actual authenticated downloads containing only the operator's facility records, filtered by arrival date and facility, up to 90 days and 10,000 reservations. Reports include amounts, discounts, fees, and check-in/out times; PDF includes the summary. CSV text is escaped against spreadsheet formulas. Payments are simulated.
+
+Pro expiry locks advanced tools and stops schedules applying to new quotes; saved schedules and existing booking prices are retained. Renew through checkout after expiry. The local demo adapter initializes pricing storage automatically. For an existing MySQL database, rerun `npm run db:setup` to add `users.operatorTier`, `users.operatorExpiresAt`, `bookings.pricingSnapshot`, and the `pricingRules` table. MySQL migration and behavior require verification against your configured MySQL instance; local tests use the demo adapter.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET / POST | `/api/operator/pro`, `/api/operator/pro/activate` | Own plan/receipts and paid demo activation |
+| GET | `/api/operator/pro/analytics`, `/api/operator/pro/alerts` | Pro-only scoped analytics and paginated alerts |
+| GET / POST / PATCH | `/api/operator/pro/rules`, `/api/operator/pro/rules/:id` | Read own schedules; Pro required to create/edit |
+| GET | `/api/operator/pro/reports/csv`, `/api/operator/pro/reports/pdf` | Pro-only report attachments |
+| GET | `/api/facilities/:id/quote` | Authoritative quote for startAt/endAt/vehicleType |
+
+Implementation: `frontend/components/OperatorPro.jsx`, `frontend/app/operator-pro.css`, `backend/src/operator-pro.js`, `operator-policy.js`, `operator-analytics.js`, and `pricing.js`. PDF generation uses PDFKit. Integration tests cover activation/expiry, ownership, scheduled/VIP/bike pricing, overstay lifecycle, and both report formats.
+
 ## Project layout
 
 - `frontend/app/`: Next.js routes and CSS, including `console.css`.

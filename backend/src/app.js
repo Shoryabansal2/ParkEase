@@ -5,9 +5,11 @@ import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { membership, priorityEV, cancellationDeadline, publicUser } from './membership.js';
-import { paymentSchema, recordPayment, money, VIP_MONTHLY_PRICE, STANDARD_CONVENIENCE_FEE, nextBillingMonth } from './payment.js';
+import { paymentSchema, recordPayment, money, VIP_MONTHLY_PRICE, nextBillingMonth } from './payment.js';
 import { makeSlots } from './catalog.js';
 import { managementRoutes } from './management.js';
+import { operatorProRoutes } from './operator-pro.js';
+import { parkingQuote } from './pricing.js';
 
 const fail = (status, message) => { const e = new Error(message); e.status = status; throw e; };
 const overlaps = (b, start, end) => ['CONFIRMED', 'ACTIVE'].includes(b.status) && b.startAt < end && b.endAt > start;
@@ -124,15 +126,22 @@ export function createApp(store, { secret, demoMode = true } = {}) {
     res.json(publicUser(u));
   });
   app.get('/api/facilities', async (req, res) => {
-    const vip = membership(await viewer(req)).tier === 'PREMIUM';
+    const benefits = membership(await viewer(req)), vip = benefits.tier === 'PREMIUM';
     const w = parseWindow(req.query);
-    const [facilities, slots, bookings, owners] = await Promise.all([store.all('facilities'), store.all('slots'), store.all('bookings'), store.all('users')]);
+    const [facilities, slots, bookings, owners, rules] = await Promise.all([store.all('facilities'), store.all('slots'), store.all('bookings'), store.all('users'), store.all('pricingRules')]);
     const vehicleType = req.query.vehicleType || 'CAR';
     const search = String(req.query.search || '').toLowerCase();
     res.json(facilities.filter(f => f.status === 'APPROVED' && owners.find(u => u.id === f.operatorId)?.status !== 'SUSPENDED' && `${f.name} ${f.address}`.toLowerCase().includes(search)).map(f => {
       const compatible = slots.filter(s => s.facilityId === f.id && s.vehicleType === vehicleType);
-      return { ...f, available: compatible.filter(s => !s.blocked && (vip || !priorityEV(s, f)) && !bookings.some(b => b.slotId === s.id && overlaps(b, w.startAt, w.endAt))).length, capacity: compatible.length };
+      const quote = parkingQuote(f, owners.find(u => u.id === f.operatorId), rules, w, vehicleType, benefits);
+      return { ...f, quotedRate: money(quote.baseTotal / w.hours), quote, available: compatible.filter(s => !s.blocked && (vip || !priorityEV(s, f)) && !bookings.some(b => b.slotId === s.id && overlaps(b, w.startAt, w.endAt))).length, capacity: compatible.length };
     }));
+  });
+  app.get('/api/facilities/:id/quote', async (req, res) => {
+    const w = parseWindow(req.query), vehicleType = z.enum(['CAR', 'BIKE', 'EV']).default('CAR').parse(req.query.vehicleType);
+    const facility = await store.get('facilities', req.params.id), owner = facility && await store.get('users', facility.operatorId);
+    if (!facility || facility.status !== 'APPROVED' || owner?.status === 'SUSPENDED') fail(404, 'Parking facility is unavailable.');
+    res.json(parkingQuote(facility, owner, await store.all('pricingRules'), w, vehicleType, membership(await viewer(req))));
   });
   app.get('/api/facilities/:id/slots', async (req, res) => {
     const vip = membership(await viewer(req)).tier === 'PREMIUM';
@@ -157,14 +166,11 @@ export function createApp(store, { secret, demoMode = true } = {}) {
       if ((await tx.get('users', f.operatorId))?.status === 'SUSPENDED') fail(409, 'This facility is unavailable.');
       if (priorityEV(slot, f) && benefits.tier !== 'PREMIUM') fail(403, 'This priority EV bay is reserved for Premium VIP members.');
       if ((await tx.all('bookings')).some(b => b.slotId === slot.id && overlaps(b, w.startAt, w.endAt))) fail(409, 'This space was just reserved. Please choose another.');
-      const rate = slot.vehicleType === 'BIKE' ? Math.round(f.rate * 0.5) : Number(f.rate);
-      const baseTotal = money(rate * w.hours);
-      const convenienceFee = benefits.tier === 'PREMIUM' ? 0 : STANDARD_CONVENIENCE_FEE;
-      const parkingTotal = money(baseTotal * (1 - benefits.discountPercent / 100));
-      const total = money(parkingTotal + convenienceFee);
+      const quote = parkingQuote(f, await tx.get('users', f.operatorId), await tx.all('pricingRules'), w, slot.vehicleType, benefits);
+      const { baseTotal, convenienceFee, total, discountAmount } = quote;
       const id = `PE-${randomUUID().slice(0, 8).toUpperCase()}`;
       await recordPayment(tx, { payment: body.payment, userId: req.user.id, purpose: 'BOOKING', amount: total, bookingId: id });
-      return tx.insert('bookings', { id, userId: req.user.id, facilityId: f.id, slotId: slot.id, vehicle: body.vehicle.toUpperCase(), startAt: w.startAt, endAt: w.endAt, total, baseTotal, convenienceFee, discountAmount: money(baseTotal - parkingTotal), membershipTier: benefits.tier, status: 'CONFIRMED', paymentStatus: 'SIMULATED', createdAt: new Date().toISOString(), checkedInAt: null, checkedOutAt: null });
+      return tx.insert('bookings', { id, userId: req.user.id, facilityId: f.id, slotId: slot.id, vehicle: body.vehicle.toUpperCase(), startAt: w.startAt, endAt: w.endAt, total, baseTotal, convenienceFee, discountAmount, pricingSnapshot: JSON.stringify(quote.segments), membershipTier: benefits.tier, status: 'CONFIRMED', paymentStatus: 'SIMULATED', createdAt: new Date().toISOString(), checkedInAt: null, checkedOutAt: null });
     });
     res.status(201).json((await hydrate([booking]))[0]);
   });
@@ -257,6 +263,7 @@ export function createApp(store, { secret, demoMode = true } = {}) {
   });
   app.get('/api/admin/users', auth('ADMIN'), async (req, res) => res.json((await store.all('users')).map(publicUser)));
   managementRoutes(app, { store, auth, hydrate, fail });
+  operatorProRoutes(app, { store, auth, hydrate, fail, demoMode });
   app.use('/api', (req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
   app.use((e, req, res, next) => {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ') });

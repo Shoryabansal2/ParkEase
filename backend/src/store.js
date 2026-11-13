@@ -5,7 +5,7 @@ import mysql from 'mysql2/promise';
 import { seedData } from './seed.js';
 import { extraFacilities, makeSlots } from './catalog.js';
 
-const tables = new Set(['users', 'facilities', 'slots', 'bookings', 'evAlerts', 'supportTickets', 'payments', 'auditLogs']);
+const tables = new Set(['users', 'facilities', 'slots', 'bookings', 'evAlerts', 'supportTickets', 'payments', 'auditLogs', 'pricingRules']);
 const checkTable = name => { if (!tables.has(name)) throw new Error('Unknown table'); return name; };
 export async function createStore({ driver = 'demo', file = null } = {}) {
   if (file instanceof URL) file = fileURLToPath(file);
@@ -27,6 +27,7 @@ export async function createStore({ driver = 'demo', file = null } = {}) {
   data.supportTickets ||= [];
   data.payments ||= [];
   data.auditLogs ||= [];
+  data.pricingRules ||= [];
   // Add new demo locations without overwriting existing facility states or bookings.
   if (data.users.some(u => u.id === 'operator-demo')) {
     for (const f of extraFacilities) if (!data.facilities.some(existing => existing.id === f.id)) data.facilities.push(structuredClone(f));
