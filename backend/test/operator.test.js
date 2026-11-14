@@ -47,7 +47,7 @@ test('operator registration and facility approval preserve access boundaries', a
   const admin = (await req('/auth/login', 'POST', { email: 'admin@parkease.com', password: 'ParkEase@123' })).data.token;
   assert.equal((await req(`/manage/facilities/${id}`, 'PATCH', { status: 'APPROVED' }, admin)).status, 200);
   assert.ok((await req(`/facilities?${query}`)).data.some(f => f.id === id));
-  assert.equal((await req(`/facilities/${id}/slots?${query}`)).data.length, 24);
+  assert.equal((await req(`/facilities/${id}/slots?${query}`)).data.length, 20);
   assert.equal((await req(`/manage/facilities/${id}`, 'PATCH', { rate: 50 }, operator)).status, 200);
   assert.equal((await req('/manage/facilities', 'GET', null, operator)).data.length, 1);
   assert.deepEqual((await req('/bookings', 'GET', null, operator)).data, []);
@@ -68,8 +68,10 @@ test('new demo locations merge without resetting previous bookings and prices', 
   assert.equal((await store.all('facilities')).filter(f => f.status === 'APPROVED').length, 12);
   assert.equal((await store.get('facilities', 'cp-central')).rate, 99);
   assert.equal((await store.get('bookings', 'preserved-booking')).status, 'CONFIRMED');
-  assert.equal((await store.all('slots')).length, 468);
+  const slotCount = (await store.all('slots')).length;
+  assert.equal((await store.all('slots')).filter(s => s.facilityId === 'cp-central' && !s.retired).length, 58);
+  assert.equal((await store.all('slots')).filter(s => s.facilityId === 'palika' && !s.retired).length, 78);
   const reopened = await createStore({ file });
   assert.equal((await reopened.all('facilities')).length, 13);
-  assert.equal((await reopened.all('slots')).length, 468);
+  assert.equal((await reopened.all('slots')).length, slotCount);
 });

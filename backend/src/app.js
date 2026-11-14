@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { membership, priorityEV, cancellationDeadline, publicUser } from './membership.js';
 import { paymentSchema, recordPayment, money, VIP_MONTHLY_PRICE, nextBillingMonth } from './payment.js';
-import { makeSlots } from './catalog.js';
+import { applyCapacity, capacitySchema } from './capacity.js';
 import { managementRoutes } from './management.js';
 import { operatorProRoutes } from './operator-pro.js';
 import { parkingQuote } from './pricing.js';
@@ -95,7 +95,7 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     const vipBookings = allBookings.filter(b => b.userId === req.user.id && b.membershipTier === 'PREMIUM' && b.status !== 'CANCELLED');
     const alerts = watches.filter(a => a.userId === req.user.id && a.startAt > new Date().toISOString()).map(a => {
       const facility = facilities.find(f => f.id === a.facilityId);
-      const count = benefits.tier === 'PREMIUM' && facility?.status === 'APPROVED' ? allSlots.filter(s => s.facilityId === a.facilityId && priorityEV(s, facility) && !s.blocked && !allBookings.some(b => b.slotId === s.id && overlaps(b, a.startAt, a.endAt))).length : 0;
+      const count = benefits.tier === 'PREMIUM' && !facility?.removedAt && facility?.status === 'APPROVED' ? allSlots.filter(s => !s.retired && s.facilityId === a.facilityId && priorityEV(s, facility) && !s.blocked && !allBookings.some(b => b.slotId === s.id && overlaps(b, a.startAt, a.endAt))).length : 0;
       return { ...a, facilityName: facility?.name, available: count, message: benefits.tier !== 'PREMIUM' ? 'VIP membership is required to use this alert.' : count ? `${count} priority EV ${count === 1 ? 'bay is' : 'bays are'} available now.` : 'Watching for an available priority EV bay.' };
     });
     res.json({ membership: benefits, savings: vipBookings.reduce((s, b) => s + Number(b.discountAmount || 0), 0), vipBookings: vipBookings.length, alerts, tickets: tickets.filter(t => t.userId === req.user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
@@ -106,7 +106,7 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     const w = parseWindow(body);
     if (Date.parse(w.startAt) <= Date.now() || Date.parse(w.startAt) > Date.now() + 7 * 86400000) fail(400, 'Choose a future arrival within seven days.');
     const f = await store.get('facilities', body.facilityId);
-    if (!f?.ev || f.status !== 'APPROVED') fail(400, 'Choose an approved facility with EV charging.');
+    if (!f?.ev || (f.removedAt || f.status !== 'APPROVED')) fail(400, 'Choose an approved facility with EV charging.');
     const alert = await store.transaction(null, async tx => {
       const existing = (await tx.all('evAlerts')).find(a => a.userId === req.user.id && a.facilityId === f.id && a.startAt === w.startAt && a.endAt === w.endAt);
       if (existing) return existing;
@@ -139,8 +139,8 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     const [facilities, slots, bookings, owners, rules] = await Promise.all([store.all('facilities'), store.all('slots'), store.all('bookings'), store.all('users'), store.all('pricingRules')]);
     const vehicleType = req.query.vehicleType || 'CAR';
     const search = String(req.query.search || '').toLowerCase();
-    res.json(facilities.filter(f => f.status === 'APPROVED' && owners.find(u => u.id === f.operatorId)?.status !== 'SUSPENDED' && `${f.name} ${f.address}`.toLowerCase().includes(search)).map(f => {
-      const compatible = slots.filter(s => s.facilityId === f.id && s.vehicleType === vehicleType);
+    res.json(facilities.filter(f => !f.removedAt && f.status === 'APPROVED' && owners.find(u => u.id === f.operatorId)?.status !== 'SUSPENDED' && `${f.name} ${f.address}`.toLowerCase().includes(search)).map(f => {
+      const compatible = slots.filter(s => !s.retired && s.facilityId === f.id && s.vehicleType === vehicleType);
       const quote = parkingQuote(f, owners.find(u => u.id === f.operatorId), rules, w, vehicleType, benefits);
       return { ...f, quotedRate: money(quote.baseTotal / w.hours), quote, available: compatible.filter(s => !s.blocked && (vip || !priorityEV(s, f)) && !bookings.some(b => b.slotId === s.id && overlaps(b, w.startAt, w.endAt))).length, capacity: compatible.length };
     }));
@@ -148,17 +148,17 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
   app.get('/api/facilities/:id/quote', async (req, res) => {
     const w = parseWindow(req.query), vehicleType = z.enum(['CAR', 'BIKE', 'EV']).default('CAR').parse(req.query.vehicleType);
     const facility = await store.get('facilities', req.params.id), owner = facility && await store.get('users', facility.operatorId);
-    if (!facility || facility.status !== 'APPROVED' || owner?.status === 'SUSPENDED') fail(404, 'Parking facility is unavailable.');
+    if (!facility || (facility.removedAt || facility.status !== 'APPROVED') || owner?.status === 'SUSPENDED') fail(404, 'Parking facility is unavailable.');
     res.json(parkingQuote(facility, owner, await store.all('pricingRules'), w, vehicleType, membership(await viewer(req))));
   });
   app.get('/api/facilities/:id/slots', async (req, res) => {
     const vip = membership(await viewer(req)).tier === 'PREMIUM';
     const w = parseWindow(req.query);
     const f = await store.get('facilities', req.params.id);
-    if (!f || f.status !== 'APPROVED') fail(404, 'Parking facility is unavailable.');
+    if (!f || (f.removedAt || f.status !== 'APPROVED')) fail(404, 'Parking facility is unavailable.');
     if ((await store.get('users', f.operatorId))?.status === 'SUSPENDED') fail(404, 'Parking facility is unavailable.');
     const bookings = await store.all('bookings');
-    res.json((await store.all('slots')).filter(s => s.facilityId === f.id && s.vehicleType === (req.query.vehicleType || 'CAR')).map(s => ({ ...s, priority: priorityEV(s, f), status: s.blocked ? 'BLOCKED' : bookings.some(b => b.slotId === s.id && overlaps(b, w.startAt, w.endAt)) ? 'RESERVED' : priorityEV(s, f) && !vip ? 'VIP_ONLY' : 'AVAILABLE' })));
+    res.json((await store.all('slots')).filter(s => !s.retired && s.facilityId === f.id && s.vehicleType === (req.query.vehicleType || 'CAR')).map(s => ({ ...s, priority: priorityEV(s, f), status: s.blocked ? 'BLOCKED' : bookings.some(b => b.slotId === s.id && overlaps(b, w.startAt, w.endAt)) ? 'RESERVED' : priorityEV(s, f) && !vip ? 'VIP_ONLY' : 'AVAILABLE' })));
   });
   app.post('/api/bookings', auth('DRIVER'), async (req, res) => {
     const body = z.object({ slotId: z.string().max(64), vehicle: z.string().trim().min(4).max(30), startAt: z.string(), endAt: z.string(), payment: paymentSchema }).parse(req.body);
@@ -166,11 +166,13 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     if (Date.parse(w.startAt) < Date.now() - 60000) fail(400, 'Choose a start time in the future.');
     const benefits = membership(req.user);
     if (Date.parse(w.startAt) > Date.now() + benefits.advanceHours * 3600000) fail(400, benefits.tier === 'PREMIUM' ? 'Premium VIP can reserve up to seven days ahead.' : 'Standard members can reserve up to 24 hours ahead. Upgrade to Premium VIP for seven days.');
-    const booking = await store.transaction(body.slotId, async tx => {
+    const requestedSlot = await store.get('slots', body.slotId);
+    if (!requestedSlot) fail(409, 'This space is unavailable. Please choose another.');
+    const booking = await store.transaction({ table: 'facilities', id: requestedSlot.facilityId }, async tx => {
       const slot = await tx.get('slots', body.slotId);
-      if (!slot || slot.blocked) fail(409, 'This space is unavailable. Please choose another.');
+      if (!slot || slot.retired || slot.blocked) fail(409, 'This space is unavailable. Please choose another.');
       const f = await tx.get('facilities', slot.facilityId);
-      if (f.status !== 'APPROVED') fail(409, 'This facility is unavailable.');
+      if ((f.removedAt || f.status !== 'APPROVED')) fail(409, 'This facility is unavailable.');
       if ((await tx.get('users', f.operatorId))?.status === 'SUSPENDED') fail(409, 'This facility is unavailable.');
       if (priorityEV(slot, f) && benefits.tier !== 'PREMIUM') fail(403, 'This priority EV bay is reserved for Premium VIP members.');
       if ((await tx.all('bookings')).some(b => b.slotId === slot.id && overlaps(b, w.startAt, w.endAt))) fail(409, 'This space was just reserved. Please choose another.');
@@ -192,14 +194,14 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     const current = await store.get('bookings', req.params.id);
     if (!current) fail(404, 'Booking not found.');
     if (current.userId !== req.user.id && req.user.role !== 'ADMIN') fail(403, 'Only the booking owner or administrator can extend.');
-    const result = await store.transaction(current.slotId, async tx => {
+    const result = await store.transaction({ table: 'facilities', id: current.facilityId }, async tx => {
       const booking = await tx.get('bookings', current.id);
       if (!['CONFIRMED', 'ACTIVE'].includes(booking.status)) fail(409, 'Only confirmed or active reservations can be extended.');
       if (Date.parse(booking.endAt) <= Date.now()) fail(409, 'This reservation has already ended. Please make a new booking.');
       if (booking.endAt !== new Date(body.expectedEndAt).toISOString()) fail(409, 'This reservation has changed. Refresh your bookings and try again.');
       const slot = await tx.get('slots', booking.slotId);
       const facility = await tx.get('facilities', booking.facilityId);
-      if (slot.blocked || facility.status !== 'APPROVED') fail(409, 'This space is unavailable for an extension.');
+      if (slot.retired || slot.blocked || (facility.removedAt || facility.status !== 'APPROVED')) fail(409, 'This space is unavailable for an extension.');
       const endAt = new Date(Date.parse(booking.endAt) + body.hours * 3600000).toISOString();
       const originalHours = (Date.parse(booking.endAt) - Date.parse(booking.startAt)) / 3600000;
       if (originalHours + body.hours > 24) fail(400, 'A reservation can be at most 24 hours in total.');
@@ -221,7 +223,7 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     if (!['cancel', 'check-in', 'check-out'].includes(action)) fail(404, 'Unknown booking action.');
     if (action === 'cancel') { if (req.user.id !== current.userId && req.user.role !== 'ADMIN') fail(403, 'Only the booking owner or administrator can cancel.'); }
     else if (req.user.role !== 'ADMIN' && !(req.user.role === 'OPERATOR' && f.operatorId === req.user.id)) fail(403, 'Only the facility operator can check vehicles in or out.');
-    const result = await store.transaction(current.slotId, async tx => {
+    const result = await store.transaction({ table: 'facilities', id: current.facilityId }, async tx => {
       const booking = await tx.get('bookings', current.id);
       const from = action === 'check-out' ? 'ACTIVE' : 'CONFIRMED';
       if (booking.status !== from) fail(409, `This booking must be ${from.toLowerCase()} for this action.`);
@@ -237,23 +239,29 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
   });
   app.get('/api/manage/facilities', auth('OPERATOR', 'ADMIN'), async (req, res) => res.json((await store.all('facilities')).filter(f => req.user.role === 'ADMIN' || f.operatorId === req.user.id)));
   app.post('/api/manage/facilities', auth('OPERATOR'), photoJSON, async (req, res) => {
-    const { photo, ...body } = z.object({ name: z.string().trim().min(3).max(150), address: z.string().trim().min(10).max(255), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), rate: z.number().min(5).max(1000), covered: z.boolean(), ev: z.boolean(), photo: z.string().max(2800000).optional() }).parse(req.body);
+    const { photo, capacity, ...body } = z.object({ name: z.string().trim().min(3).max(150), address: z.string().trim().min(10).max(255), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), rate: z.number().min(5).max(1000), covered: z.boolean(), ev: z.boolean(), capacity: capacitySchema.optional(), photo: z.string().max(2800000).optional() }).parse(req.body);
     const facility = { ...body, id: `lot-${randomUUID().slice(0, 12)}`, operatorId: req.user.id, status: 'PENDING', covered: Number(body.covered), ev: Number(body.ev), rating: 0, tag: 'New facility', distance: '0', image: 'garage' };
     const upload = photo ? await saveFacilityPhoto(photo, photoDirectory) : null;
     if (upload) facility.photoUrl = upload.photoUrl;
-    try { await store.transaction(null, async tx => { await tx.insert('facilities', facility); for (const slot of makeSlots([facility])) await tx.insert('slots', slot); }); }
+    try { await store.transaction(null, async tx => { await tx.insert('facilities', facility); await applyCapacity(tx, facility, capacity || { CAR: 20, BIKE: 8, EV: body.ev ? 4 : 0 }); }); }
     catch (e) { await upload?.discard(); throw e; }
     res.status(201).json(facility);
   });
   app.patch('/api/manage/facilities/:id', auth('OPERATOR', 'ADMIN'), photoJSON, async (req, res) => {
-    const { photo, ...body } = z.object({ rate: z.number().min(5).max(1000).optional(), status: z.enum(['APPROVED', 'REJECTED', 'SUSPENDED']).optional(), photo: z.string().min(1).max(2800000).nullable().optional() }).parse(req.body);
-    if (!Object.keys(body).length && photo === undefined) fail(400, 'Choose a rate, status, or photo to update.');
+    const { photo, capacity, ...body } = z.object({ rate: z.number().min(5).max(1000).optional(), status: z.enum(['APPROVED', 'REJECTED', 'SUSPENDED']).optional(), capacity: capacitySchema.optional(), photo: z.string().min(1).max(2800000).nullable().optional() }).parse(req.body);
+    if (!Object.keys(body).length && photo === undefined && !capacity) fail(400, 'Choose a rate, capacity, status, or photo to update.');
     const f = await store.get('facilities', req.params.id);
     if (!f) fail(404, 'Facility not found.');
+    if (f.removedAt) fail(409, 'Restore this removed listing before editing it.');
     if (req.user.role !== 'ADMIN' && (body.status || f.operatorId !== req.user.id)) fail(403, 'You cannot update this facility.');
     const upload = photo ? await saveFacilityPhoto(photo, photoDirectory) : null;
     if (photo !== undefined) body.photoUrl = upload?.photoUrl || null;
-    try { res.json(await store.transaction(null, tx => tx.update('facilities', f.id, body))); }
+    try { res.json(await store.transaction({ table: 'facilities', id: f.id }, async tx => {
+      const current = await tx.get('facilities', f.id);
+      if (current.removedAt) fail(409, 'Restore this removed listing before editing it.');
+      if (capacity) await applyCapacity(tx, current, capacity);
+      return tx.update('facilities', f.id, body);
+    })); }
     catch (e) { await upload?.discard(); throw e; }
   });
   app.get('/api/manage/facilities/:id/slots', auth('OPERATOR', 'ADMIN'), async (req, res) => {
@@ -262,7 +270,26 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     if (!facility || (req.user.role !== 'ADMIN' && facility.operatorId !== req.user.id)) fail(404, 'Facility not found.');
     const bookings = await store.all('bookings');
     const now = new Date().toISOString();
-    res.json((await store.all('slots')).filter(s => s.facilityId === facility.id && s.vehicleType === vehicleType).map(s => ({ ...s, status: s.blocked ? 'BLOCKED' : bookings.some(b => b.slotId === s.id && (b.status === 'ACTIVE' || (b.status === 'CONFIRMED' && b.endAt > now))) ? 'RESERVED' : 'AVAILABLE' })));
+    res.json((await store.all('slots')).filter(s => !s.retired && s.facilityId === facility.id && s.vehicleType === vehicleType).map(s => ({ ...s, status: s.blocked ? 'BLOCKED' : bookings.some(b => b.slotId === s.id && (b.status === 'ACTIVE' || (b.status === 'CONFIRMED' && b.endAt > now))) ? 'RESERVED' : 'AVAILABLE' })));
+  });
+  app.post('/api/manage/facilities/:id/remove', auth('OPERATOR', 'ADMIN'), async (req, res) => {
+    const { confirmName } = z.object({ confirmName: z.string() }).parse(req.body);
+    res.json(await store.transaction({ table: 'facilities', id: req.params.id }, async tx => {
+      const facility = await tx.get('facilities', req.params.id);
+      if (!facility || (req.user.role !== 'ADMIN' && facility.operatorId !== req.user.id)) fail(404, 'Facility not found.');
+      if (confirmName !== facility.name) fail(400, 'Type the facility name exactly to confirm removal.');
+      if (facility.removedAt) fail(409, 'This listing is already removed.');
+      if ((await tx.all('bookings')).some(b => b.facilityId === facility.id && ['CONFIRMED', 'ACTIVE'].includes(b.status))) fail(409, 'Resolve all confirmed and checked-in reservations before removing this listing.');
+      return tx.update('facilities', facility.id, { removedAt: new Date().toISOString() });
+    }));
+  });
+  app.post('/api/manage/facilities/:id/restore', auth('OPERATOR', 'ADMIN'), async (req, res) => {
+    res.json(await store.transaction({ table: 'facilities', id: req.params.id }, async tx => {
+      const facility = await tx.get('facilities', req.params.id);
+      if (!facility || (req.user.role !== 'ADMIN' && facility.operatorId !== req.user.id)) fail(404, 'Facility not found.');
+      if (!facility.removedAt) fail(409, 'This listing has not been removed.');
+      return tx.update('facilities', facility.id, { removedAt: null, status: 'PENDING' });
+    }));
   });
   app.patch('/api/manage/slots/:id', auth('OPERATOR', 'ADMIN'), async (req, res) => {
     const { blocked } = z.object({ blocked: z.boolean() }).parse(req.body);
@@ -270,7 +297,8 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
     if (!slot) fail(404, 'Slot not found.');
     const f = await store.get('facilities', slot.facilityId);
     if (req.user.role !== 'ADMIN' && f.operatorId !== req.user.id) fail(403, 'You cannot update this space.');
-    res.json(await store.transaction(slot.id, async tx => {
+    res.json(await store.transaction({ table: 'facilities', id: slot.facilityId }, async tx => {
+      if ((await tx.get('slots', slot.id))?.retired) fail(409, 'This space has been removed from capacity.');
       if (blocked && (await tx.all('bookings')).some(b => b.slotId === slot.id && (b.status === 'ACTIVE' || (b.status === 'CONFIRMED' && b.endAt > new Date().toISOString())))) fail(409, 'A reserved space cannot be blocked.');
       return tx.update('slots', slot.id, { blocked: blocked ? 1 : 0 });
     }));

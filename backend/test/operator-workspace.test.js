@@ -55,12 +55,12 @@ test('operator workspace pagination, filters, gate lookup, and private inventory
     assert.equal((await request('/operator/reservations/PE-FOREIGN', operator)).status, 404);
     assert.equal((await request('/operator/reservations/PE-WORK0001', foreign)).status, 404);
     const rows = (await request('/operator/manage/facilities?pageSize=5', operator)).data;
-    assert.equal(rows.total, 13); assert.equal(rows.items.length, 5); assert.ok(rows.items.every(f => f.bayCount === 36));
+    assert.equal(rows.total, 13); assert.equal(rows.items.length, 5); assert.ok(new Set(rows.items.map(f => f.bayCount)).size > 1); assert.ok(rows.items.every(f => f.bayCount === f.capacity.CAR + f.capacity.BIKE + f.capacity.EV));
   });
   await t.test('private inventory supports pending facilities and correct vehicle types while protecting ownership', async () => {
     const bikes = await request('/manage/facilities/cp-central/slots?vehicleType=BIKE', operator);
-    assert.equal(bikes.status, 200); assert.equal(bikes.data.length, 8); assert.ok(bikes.data.every(s => s.vehicleType === 'BIKE'));
-    assert.equal((await request('/manage/facilities/saket/slots?vehicleType=EV', operator)).data.length, 4);
+    assert.equal(bikes.status, 200); assert.equal(bikes.data.length, 12); assert.ok(bikes.data.every(s => s.vehicleType === 'BIKE'));
+    assert.equal((await request('/manage/facilities/saket/slots?vehicleType=EV', operator)).data.length, 8);
     assert.equal((await request('/manage/facilities/cp-central/slots', foreign)).status, 404);
     assert.equal((await request('/manage/facilities/cp-central/slots', driver)).status, 403);
     assert.equal((await request('/manage/facilities/cp-central/slots?vehicleType=TRUCK', operator)).status, 400);

@@ -23,7 +23,7 @@ export async function operatorAnalytics(store, userId, input) {
   const bookings = ownedBookings.filter(b => Date.parse(b.startAt) >= window.start && Date.parse(b.startAt) < window.end).sort((a, b) => a.startAt.localeCompare(b.startAt)).map(b => ({ ...b, facilityName: facilityMap.get(b.facilityId)?.name, driverName: userMap.get(b.userId)?.name || 'Driver', bay: slotMap.get(b.slotId)?.label, vehicleType: slotMap.get(b.slotId)?.vehicleType || 'CAR' }));
   const valid = bookings.filter(b => b.status !== 'CANCELLED');
   const parkingValue = b => Math.max(0, Number(b.total) - Number(b.convenienceFee || 0));
-  const serviceable = slots.filter(s => ids.has(s.facilityId) && !s.blocked), serviceIds = new Set(serviceable.map(s => s.id));
+  const serviceable = slots.filter(s => ids.has(s.facilityId) && !s.retired && !s.blocked && !facilityMap.get(s.facilityId)?.removedAt), serviceIds = new Set(serviceable.map(s => s.id));
   const overlapping = ownedBookings.filter(b => b.status !== 'CANCELLED' && serviceIds.has(b.slotId) && Date.parse(b.startAt) < window.end && Date.parse(b.endAt) > window.start);
   const reservedMs = (start, end) => overlapping.reduce((n, b) => n + Math.max(0, Math.min(end, Date.parse(b.endAt)) - Math.max(start, Date.parse(b.startAt))), 0);
   const daily = [];

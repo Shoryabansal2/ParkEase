@@ -2,6 +2,7 @@ import 'dotenv/config';
 import mysql from 'mysql2/promise';
 import { readFile } from 'node:fs/promises';
 import { seedData } from './seed.js';
+import { varyDemoCapacity } from './capacity.js';
 const name = process.env.DB_NAME || 'parkease';
 if (!/^[a-zA-Z0-9_]+$/.test(name)) throw new Error('DB_NAME may contain only letters, digits and underscores.');
 const conn = await mysql.createConnection({ host: process.env.DB_HOST || '127.0.0.1', port: Number(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '' });
@@ -11,6 +12,9 @@ try {
   for (const statement of (await readFile(new URL('./schema.sql', import.meta.url), 'utf8')).split(';').filter(s => s.trim())) await conn.query(statement);
   // Additive migration for existing installations. No users or bookings are reset.
   for (const [table, column, definition] of [
+    ['facilities', 'capacityConfigured', 'BOOLEAN NOT NULL DEFAULT FALSE'],
+    ['facilities', 'removedAt', 'VARCHAR(30) NULL'],
+    ['slots', 'retired', 'BOOLEAN NOT NULL DEFAULT FALSE'],
     ['facilities', 'photoUrl', 'VARCHAR(255) NULL'],
     ['users', 'operatorTier', "VARCHAR(16) NOT NULL DEFAULT 'STANDARD'"],
     ['users', 'operatorExpiresAt', 'VARCHAR(30) NULL'],
@@ -36,6 +40,15 @@ try {
         const keys = Object.keys(row);
         await conn.execute(`INSERT IGNORE INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(',')}) VALUES (${keys.map(() => '?').join(',')})`, Object.values(row));
       }
+      const data = {};
+      for (const table of ['facilities', 'slots', 'bookings']) data[table] = (await conn.query(`SELECT * FROM \`${table}\``))[0];
+      const oldSlots = new Map(data.slots.map(s => [s.id, Number(s.retired || 0)])), configured = new Set(data.facilities.filter(f => f.capacityConfigured).map(f => f.id));
+      varyDemoCapacity(data);
+      for (const slot of data.slots) {
+        if (!oldSlots.has(slot.id)) { const keys = Object.keys(slot); await conn.execute(`INSERT INTO slots (${keys.map(k => `\`${k}\``).join(',')}) VALUES (${keys.map(() => '?').join(',')})`, Object.values(slot)); }
+        else if (Number(slot.retired || 0) !== oldSlots.get(slot.id)) await conn.execute('UPDATE slots SET retired = ? WHERE id = ?', [slot.retired, slot.id]);
+      }
+      for (const f of data.facilities.filter(f => f.capacityConfigured && !configured.has(f.id))) await conn.execute('UPDATE facilities SET capacityConfigured = 1 WHERE id = ?', [f.id]);
       await conn.commit();
     } catch (e) { await conn.rollback(); throw e; }
   }

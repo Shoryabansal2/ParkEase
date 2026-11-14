@@ -26,9 +26,9 @@ test('ParkEase reservation lifecycle and access boundaries', async t => {
     const r = await request(`/facilities?${window}`);
     assert.equal(r.status, 200); assert.equal(r.data.length, 12);
     assert.ok(r.data.every(f => f.status === 'APPROVED'));
-    assert.equal(r.data.find(f => f.id === 'cp-central').available, 22);
+    assert.equal(r.data.find(f => f.id === 'cp-central').available, 38);
     const ev = await request(`/facilities/cp-central/slots?${new URLSearchParams({ startAt, endAt, vehicleType: 'EV' })}`);
-    assert.equal(ev.data.length, 4); assert.ok(ev.data.every(s => s.vehicleType === 'EV'));
+    assert.equal(ev.data.length, 6); assert.ok(ev.data.every(s => s.vehicleType === 'EV'));
   });
   await t.test('unauthenticated and operator accounts cannot book', async () => {
     assert.equal((await request('/bookings', { method: 'POST', body })).status, 401);

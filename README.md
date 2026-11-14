@@ -164,6 +164,16 @@ All protected requests use `Authorization: Bearer <token>`. Password hashes and 
 
 Management lists accept `page`, `pageSize` (5–50), `q`, `status`, `role`, and `sort`. Reservations also accept `from`, `to`, `timezoneOffset`, and `userId`. Responses contain `items`, `total`, `page`, `pages`, and `pageSize`. Dates in storage/API use ISO 8601 instants; display uses the browser's local timezone.
 
+## Parking capacity and removal
+
+The operator listing form accepts separate Car, Bike, and EV space counts, totaling 1–500 spaces. Edit them later through **Your facilities → Manage → Parking capacity → Save facility changes**. Counts create actual reservable bays. Increasing capacity reuses retired bays before creating new ones; decreasing capacity retires unreserved bays without deleting their IDs or historical bookings. All confirmed reservations (including overdue uncompleted ones) and checked-in sessions protect their bays from retirement. Capacity includes maintenance bays; maintenance changes availability rather than physical capacity.
+
+Demo facilities have varied capacities, such as CP Central (58), Palika (78), Janpath (34), and Aerocity (122). The one-time migration retains names, rates, photos, listing states, bay identities and bookings; reserved bays are retained even if that leaves a demo facility above its target. Once configured, operator capacity changes are not overwritten at restart. Historical retired bays remain in storage and never appear in new booking availability.
+
+**Remove listing** in the facility details asks for its exact name. Removal is rejected while any confirmed or checked-in reservation remains. It hides the listing from public search, slot selection, quotes and checkout, while retaining booking history and reports. Find removed listings using the **Removed** status filter and **Restore listing for approval**. Restoration sets the listing to Pending, requiring administrator approval. The same parent-facility transaction lock protects booking, capacity, maintenance, removal, and restoration operations from races.
+
+New REST operations: `POST /api/manage/facilities/:id/remove` with `{ confirmName }`, `POST /api/manage/facilities/:id/restore`, and optional `{ capacity: { CAR, BIKE, EV } }` on listing creation/update. MySQL users must rerun `npm run db:setup` for `slots.retired`, `facilities.capacityConfigured`, and `facilities.removedAt`; it also applies the demo variations without resetting existing records. Local demo storage migrates automatically.
+
 ## Parking listing photos
 
 Demo cards use locally bundled Pexels sample photographs, with source links and a “Sample photo” label; they do not depict the named facilities. See `frontend/public/images/parking/CREDITS.md` for sources and license links. Operator photographs replace the sample image on public listing cards.

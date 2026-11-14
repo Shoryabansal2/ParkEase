@@ -56,6 +56,7 @@ export function operatorProRoutes(app, { store, auth, fail, demoMode, hydrate })
       const full = ruleSchema.parse({ ...base, ...input });
       const facility = await tx.get('facilities', full.facilityId);
       if (!facility || facility.operatorId !== req.user.id) fail(404, 'Facility not found.');
+      if (facility.removedAt) fail(409, 'Restore this listing before changing pricing schedules.');
       const startMinute = minutes(full.startTime), endMinute = minutes(full.endTime);
       if (endMinute - startMinute < 15) fail(400, 'Choose a time band of at least 15 minutes. Split overnight schedules into two rules.');
       const rules = (await tx.all('pricingRules')).filter(r => r.facilityId === full.facilityId && r.id !== old?.id);

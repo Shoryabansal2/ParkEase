@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 import { seedData } from './seed.js';
 import { extraFacilities, makeSlots } from './catalog.js';
+import { varyDemoCapacity } from './capacity.js';
 
 const tables = new Set(['users', 'facilities', 'slots', 'bookings', 'evAlerts', 'supportTickets', 'payments', 'auditLogs', 'pricingRules']);
 const checkTable = name => { if (!tables.has(name)) throw new Error('Unknown table'); return name; };
@@ -33,6 +34,7 @@ export async function createStore({ driver = 'demo', file = null } = {}) {
     for (const f of extraFacilities) if (!data.facilities.some(existing => existing.id === f.id)) data.facilities.push(structuredClone(f));
     for (const s of makeSlots(extraFacilities)) if (!data.slots.some(existing => existing.id === s.id)) data.slots.push(s);
   }
+  varyDemoCapacity(data);
   const persist = async () => { if (file) { await mkdir(dirname(file), { recursive: true }); await writeFile(`${file}.tmp`, JSON.stringify(data, null, 2)); await rename(`${file}.tmp`, file); } };
   await persist();
   const repo = {

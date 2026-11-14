@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { extraFacilities, makeSlots } from './catalog.js';
+import { varyDemoCapacity } from './capacity.js';
 
 export async function seedData() {
   const passwordHash = await bcrypt.hash('ParkEase@123', 10);
@@ -17,5 +18,7 @@ export async function seedData() {
   ];
   facilities.push(...extraFacilities);
   const slots = makeSlots(facilities);
-  return { users, facilities, slots, bookings: [] };
+  const data = { users, facilities, slots, bookings: [] };
+  varyDemoCapacity(data);
+  return data;
 }
