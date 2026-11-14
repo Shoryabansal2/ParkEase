@@ -164,6 +164,14 @@ All protected requests use `Authorization: Bearer <token>`. Password hashes and 
 
 Management lists accept `page`, `pageSize` (5–50), `q`, `status`, `role`, and `sort`. Reservations also accept `from`, `to`, `timezoneOffset`, and `userId`. Responses contain `items`, `total`, `page`, `pages`, and `pageSize`. Dates in storage/API use ISO 8601 instants; display uses the browser's local timezone.
 
+## Parking listing photos
+
+Demo cards use locally bundled Pexels sample photographs, with source links and a “Sample photo” label; they do not depict the named facilities. See `frontend/public/images/parking/CREDITS.md` for sources and license links. Operator photographs replace the sample image on public listing cards.
+
+Operators can upload an optional photo while listing a facility, or use **Your facilities → Manage → Parking photo → Save facility changes** to replace/remove an existing photo. JPG, PNG, and WebP files are supported up to 2 MB, at least 320 × 200 pixels, and at most 20 megapixels. The form previews the photo and checks file type, size, and dimensions. The backend verifies decoded image format/content, rejects animation, strips metadata, and saves an optimized WebP no larger than 1200 × 900. Filenames are random, and only the listing owner or an administrator can change its photo. New listings still require administrator approval.
+
+Uploads are stored in ignored `backend/data/uploads/facilities/`, referenced by `facilities.photoUrl`, and served at `/api/uploads/facilities/:filename.webp`. Uploaded photos are public images; no original filename or base64 image is stored in the database. Replaced image files are retained; periodically remove unreferenced uploads if needed. Back up this upload folder together with your database. Existing MySQL installations need `npm run db:setup` to add the nullable `photoUrl` column. Photo handling uses the Sharp backend dependency. Standard API bodies retain their 20 KB limit; authenticated listing create/update requests allow 3 MB to accommodate base64 image transport.
+
 ## Parking discovery pagination
 
 The homepage shows four facility cards per page, with numbered pages, Previous/Next controls, and a result range. Changing search, filters, sorting, vehicle, or booking window resets to page one. All matching facilities remain on the map; selecting a marker opens the corresponding results page.

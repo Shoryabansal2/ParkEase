@@ -10,6 +10,8 @@ import { makeSlots } from './catalog.js';
 import { managementRoutes } from './management.js';
 import { operatorProRoutes } from './operator-pro.js';
 import { parkingQuote } from './pricing.js';
+import { fileURLToPath } from 'node:url';
+import { defaultPhotoDirectory, PHOTO_BODY_LIMIT, saveFacilityPhoto } from './facility-photos.js';
 
 const fail = (status, message) => { const e = new Error(message); e.status = status; throw e; };
 const overlaps = (b, start, end) => ['CONFIRMED', 'ACTIVE'].includes(b.status) && b.startAt < end && b.endAt > start;
@@ -21,12 +23,18 @@ function parseWindow(input) {
   if (hours < 0.25 || hours > 24) fail(400, 'Choose a parking duration between 15 minutes and 24 hours.');
   return { startAt, endAt, hours };
 }
-export function createApp(store, { secret, demoMode = true } = {}) {
+export function createApp(store, { secret, demoMode = true, photoDirectory = defaultPhotoDirectory } = {}) {
   if (!secret) throw new Error('JWT secret is required.');
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: (process.env.FRONTEND_ORIGIN || 'http://127.0.0.1:3000').split(',') }));
-  app.use(express.json({ limit: '20kb' }));
+  photoDirectory = photoDirectory instanceof URL ? fileURLToPath(photoDirectory) : photoDirectory;
+  const smallJSON = express.json({ limit: '20kb' }), photoJSON = express.json({ limit: PHOTO_BODY_LIMIT });
+  app.use((req, res, next) => ['POST', 'PATCH'].includes(req.method) && /^\/api\/manage\/facilities(?:\/[^/]+)?\/?$/.test(req.path) ? next() : smallJSON(req, res, next));
+  app.use('/api/uploads/facilities', (req, res, next) => {
+    if (!/^\/[a-f0-9-]{36}\.webp$/.test(req.path)) return res.status(404).json({ error: 'Photo not found.' });
+    res.set('X-Content-Type-Options', 'nosniff'); next();
+  }, express.static(photoDirectory, { dotfiles: 'deny', index: false, maxAge: '1y', immutable: true }));
   const session = u => ({ user: publicUser(u), token: jwt.sign({ sub: u.id, version: u.sessionVersion || 0 }, secret, { expiresIn: '12h' }) });
   const auth = (...roles) => async (req, res, next) => {
     try {
@@ -228,19 +236,25 @@ export function createApp(store, { secret, demoMode = true } = {}) {
     res.json((await hydrate([result]))[0]);
   });
   app.get('/api/manage/facilities', auth('OPERATOR', 'ADMIN'), async (req, res) => res.json((await store.all('facilities')).filter(f => req.user.role === 'ADMIN' || f.operatorId === req.user.id)));
-  app.post('/api/manage/facilities', auth('OPERATOR'), async (req, res) => {
-    const body = z.object({ name: z.string().trim().min(3).max(150), address: z.string().trim().min(10).max(255), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), rate: z.number().min(5).max(1000), covered: z.boolean(), ev: z.boolean() }).parse(req.body);
+  app.post('/api/manage/facilities', auth('OPERATOR'), photoJSON, async (req, res) => {
+    const { photo, ...body } = z.object({ name: z.string().trim().min(3).max(150), address: z.string().trim().min(10).max(255), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), rate: z.number().min(5).max(1000), covered: z.boolean(), ev: z.boolean(), photo: z.string().max(2800000).optional() }).parse(req.body);
     const facility = { ...body, id: `lot-${randomUUID().slice(0, 12)}`, operatorId: req.user.id, status: 'PENDING', covered: Number(body.covered), ev: Number(body.ev), rating: 0, tag: 'New facility', distance: '0', image: 'garage' };
-    await store.transaction(null, async tx => { await tx.insert('facilities', facility); for (const slot of makeSlots([facility])) await tx.insert('slots', slot); });
+    const upload = photo ? await saveFacilityPhoto(photo, photoDirectory) : null;
+    if (upload) facility.photoUrl = upload.photoUrl;
+    try { await store.transaction(null, async tx => { await tx.insert('facilities', facility); for (const slot of makeSlots([facility])) await tx.insert('slots', slot); }); }
+    catch (e) { await upload?.discard(); throw e; }
     res.status(201).json(facility);
   });
-  app.patch('/api/manage/facilities/:id', auth('OPERATOR', 'ADMIN'), async (req, res) => {
-    const body = z.object({ rate: z.number().min(5).max(1000).optional(), status: z.enum(['APPROVED', 'REJECTED', 'SUSPENDED']).optional() }).parse(req.body);
-    if (!Object.keys(body).length) fail(400, 'Choose a rate or status to update.');
+  app.patch('/api/manage/facilities/:id', auth('OPERATOR', 'ADMIN'), photoJSON, async (req, res) => {
+    const { photo, ...body } = z.object({ rate: z.number().min(5).max(1000).optional(), status: z.enum(['APPROVED', 'REJECTED', 'SUSPENDED']).optional(), photo: z.string().min(1).max(2800000).nullable().optional() }).parse(req.body);
+    if (!Object.keys(body).length && photo === undefined) fail(400, 'Choose a rate, status, or photo to update.');
     const f = await store.get('facilities', req.params.id);
     if (!f) fail(404, 'Facility not found.');
     if (req.user.role !== 'ADMIN' && (body.status || f.operatorId !== req.user.id)) fail(403, 'You cannot update this facility.');
-    res.json(await store.transaction(null, tx => tx.update('facilities', f.id, body)));
+    const upload = photo ? await saveFacilityPhoto(photo, photoDirectory) : null;
+    if (photo !== undefined) body.photoUrl = upload?.photoUrl || null;
+    try { res.json(await store.transaction(null, tx => tx.update('facilities', f.id, body))); }
+    catch (e) { await upload?.discard(); throw e; }
   });
   app.get('/api/manage/facilities/:id/slots', auth('OPERATOR', 'ADMIN'), async (req, res) => {
     const vehicleType = z.enum(['CAR', 'BIKE', 'EV']).default('CAR').parse(req.query.vehicleType);
