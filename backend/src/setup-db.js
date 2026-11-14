@@ -12,6 +12,7 @@ try {
   for (const statement of (await readFile(new URL('./schema.sql', import.meta.url), 'utf8')).split(';').filter(s => s.trim())) await conn.query(statement);
   // Additive migration for existing installations. No users or bookings are reset.
   for (const [table, column, definition] of [
+    ['bookings', 'cancelledAt', 'VARCHAR(30) NULL'],
     ['facilities', 'capacityConfigured', 'BOOLEAN NOT NULL DEFAULT FALSE'],
     ['facilities', 'removedAt', 'VARCHAR(30) NULL'],
     ['slots', 'retired', 'BOOLEAN NOT NULL DEFAULT FALSE'],

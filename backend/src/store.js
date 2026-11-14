@@ -6,18 +6,18 @@ import { seedData } from './seed.js';
 import { extraFacilities, makeSlots } from './catalog.js';
 import { varyDemoCapacity } from './capacity.js';
 
-const tables = new Set(['users', 'facilities', 'slots', 'bookings', 'evAlerts', 'supportTickets', 'payments', 'auditLogs', 'pricingRules']);
+const tables = new Set(['users', 'facilities', 'slots', 'bookings', 'evAlerts', 'supportTickets', 'payments', 'auditLogs', 'pricingRules', 'notificationReads', 'parkingNotes']);
 const checkTable = name => { if (!tables.has(name)) throw new Error('Unknown table'); return name; };
-export async function createStore({ driver = 'demo', file = null } = {}) {
+export async function createStore({ driver = 'demo', file = null, mysqlConfig = {} } = {}) {
   if (file instanceof URL) file = fileURLToPath(file);
   if (driver === 'mysql') {
-    const pool = mysql.createPool({ host: process.env.DB_HOST || '127.0.0.1', port: Number(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '', database: process.env.DB_NAME || 'parkease', connectionLimit: 10, decimalNumbers: true });
+    const pool = mysql.createPool({ host: process.env.DB_HOST || '127.0.0.1', port: Number(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '', database: process.env.DB_NAME || 'parkease', connectionLimit: 10, decimalNumbers: true, ...mysqlConfig });
     await pool.query('SELECT 1');
     const repo = conn => ({
       async all(table) { return (await conn.query(`SELECT * FROM \`${checkTable(table)}\``))[0]; },
       async get(table, id) { return (await conn.execute(`SELECT * FROM \`${checkTable(table)}\` WHERE id = ?`, [id]))[0][0]; },
       async insert(table, row) { const keys = Object.keys(row); await conn.execute(`INSERT INTO \`${checkTable(table)}\` (${keys.map(k => `\`${k}\``).join(',')}) VALUES (${keys.map(() => '?').join(',')})`, Object.values(row)); return row; },
-      async update(table, id, patch) { const keys = Object.keys(patch); await conn.execute(`UPDATE \`${checkTable(table)}\` SET ${keys.map(k => `\`${k}\` = ?`).join(',')} WHERE id = ?`, [...Object.values(patch), id]); return this.get(table, id); }
+      async update(table, id, patch) { const keys = Object.keys(patch); if (!keys.length) return this.get(table, id); await conn.execute(`UPDATE \`${checkTable(table)}\` SET ${keys.map(k => `\`${k}\` = ?`).join(',')} WHERE id = ?`, [...Object.values(patch), id]); return this.get(table, id); }
     });
     return { ...repo(pool), driver, async transaction(slotId, action) { const conn = await pool.getConnection(); try { await conn.beginTransaction(); if (slotId) { const lock = typeof slotId === 'object' ? slotId : { table: 'slots', id: slotId }; await conn.execute(`SELECT id FROM \`${checkTable(lock.table)}\` WHERE id = ? FOR UPDATE`, [lock.id]); } const result = await action(repo(conn)); await conn.commit(); return result; } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); } }, close: () => pool.end() };
   }
@@ -29,6 +29,8 @@ export async function createStore({ driver = 'demo', file = null } = {}) {
   data.payments ||= [];
   data.auditLogs ||= [];
   data.pricingRules ||= [];
+  data.notificationReads ||= [];
+  data.parkingNotes ||= [];
   // Add new demo locations without overwriting existing facility states or bookings.
   if (data.users.some(u => u.id === 'operator-demo')) {
     for (const f of extraFacilities) if (!data.facilities.some(existing => existing.id === f.id)) data.facilities.push(structuredClone(f));

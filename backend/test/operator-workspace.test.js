@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 import { createApp } from '../src/app.js';
 
 test('operator workspace pagination, filters, gate lookup, and private inventory', async t => {
   const store = await createStore();
   const server = createApp(store, { secret: 'operator-workspace-tests' }).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); await store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   async function request(path, token, method = 'GET', body) {
     const r = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });

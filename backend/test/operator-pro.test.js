@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 import { createApp } from '../src/app.js';
 import { TEST_PAYMENT_DETAILS } from '../../shared/payment-validation.mjs';
 import { reportWindow } from '../src/operator-analytics.js';
 
 test('Operator Pro billing, pricing, analytics, alerts and report boundaries', async t => {
   const store = await createStore(), server = createApp(store, { secret: 'operator-pro-test' }).listen(0, '127.0.0.1');
-  await new Promise(resolve => server.once('listening', resolve)); t.after(() => new Promise(resolve => server.close(resolve)));
+  await new Promise(resolve => server.once('listening', resolve)); t.after(async () => { await new Promise(resolve => server.close(resolve)); await store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   async function req(path, token, method = 'GET', body) {
     const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -78,7 +78,7 @@ test('Operator Pro billing, pricing, analytics, alerts and report boundaries', a
   await t.test('analytics separates fees, arrivals, collections, cancellations, capacity, and foreign data', async () => {
     const past = new Date(Date.now() - 3600000).toISOString(), ended = new Date(Date.now() - 10 * 60000).toISOString();
     await store.transaction(null, async tx => {
-      const base = { ...booking, startAt: past, endAt: ended, createdAt: past, total: 50, baseTotal: 40, convenienceFee: 10, discountAmount: 0, pricingSnapshot: null };
+      const base = { ...(await tx.get('bookings', booking.id)), startAt: past, endAt: ended, createdAt: past, total: 50, baseTotal: 40, convenienceFee: 10, discountAmount: 0, pricingSnapshot: null };
       await tx.insert('bookings', { ...base, id: 'PE-OVERSTAY', slotId: 'cp-central-3', status: 'ACTIVE', checkedInAt: past, vehicle: '=SUM(1,1)' });
       await tx.insert('bookings', { ...base, id: 'PE-CANCELLED', slotId: 'cp-central-4', status: 'CANCELLED' });
       await tx.insert('bookings', { ...base, id: 'PE-FOREIGN-PRO', facilityId: 'foreign-pro', status: 'ACTIVE', total: 9999 });

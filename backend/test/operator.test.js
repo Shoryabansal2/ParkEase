@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../src/app.js';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 import { seedData } from '../src/seed.js';
 import { bookingBounds, clampWindow } from '../../frontend/components/booking-window.mjs';
 
@@ -23,7 +23,7 @@ test('operator registration and facility approval preserve access boundaries', a
   const store = await createStore();
   const server = createApp(store, { secret: 'operator-test-only' }).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); await store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   async function req(path, method = 'GET', body, token) {
     const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });

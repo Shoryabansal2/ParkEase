@@ -12,6 +12,7 @@ import { operatorProRoutes } from './operator-pro.js';
 import { parkingQuote } from './pricing.js';
 import { fileURLToPath } from 'node:url';
 import { defaultPhotoDirectory, PHOTO_BODY_LIMIT, saveFacilityPhoto } from './facility-photos.js';
+import { driverToolsRoutes } from './driver-tools.js';
 
 const fail = (status, message) => { const e = new Error(message); e.status = status; throw e; };
 const overlaps = (b, start, end) => ['CONFIRMED', 'ACTIVE'].includes(b.status) && b.startAt < end && b.endAt > start;
@@ -230,7 +231,7 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
       if (action === 'cancel' && req.user.role !== 'ADMIN' && Date.now() > Date.parse(cancellationDeadline(booking))) fail(409, `Free cancellation closed at ${cancellationDeadline(booking)}. ${booking.membershipTier === 'PREMIUM' ? 'VIP cancellation closes 30 minutes' : 'Standard cancellation closes two hours'} before arrival. Contact support for help.`);
       if (action === 'check-in' && !demoMode && (Date.now() < Date.parse(booking.startAt) - 15 * 60000 || Date.now() >= Date.parse(booking.endAt))) fail(400, 'Check-in opens 15 minutes before your booking and closes at its end.');
       const patch = { status: action === 'cancel' ? 'CANCELLED' : action === 'check-in' ? 'ACTIVE' : 'COMPLETED' };
-      if (action === 'cancel') { patch.paymentStatus = 'VOIDED'; for (const payment of (await tx.all('payments')).filter(p => p.bookingId === booking.id)) await tx.update('payments', payment.id, { status: 'SIMULATED_VOIDED' }); }
+      if (action === 'cancel') { patch.cancelledAt = new Date().toISOString(); patch.paymentStatus = 'VOIDED'; for (const payment of (await tx.all('payments')).filter(p => p.bookingId === booking.id)) await tx.update('payments', payment.id, { status: 'SIMULATED_VOIDED' }); }
       if (action === 'check-in') patch.checkedInAt = new Date().toISOString();
       if (action === 'check-out') patch.checkedOutAt = new Date().toISOString();
       return tx.update('bookings', booking.id, patch);
@@ -306,6 +307,7 @@ export function createApp(store, { secret, demoMode = true, photoDirectory = def
   app.get('/api/admin/users', auth('ADMIN'), async (req, res) => res.json((await store.all('users')).map(publicUser)));
   managementRoutes(app, { store, auth, hydrate, fail });
   operatorProRoutes(app, { store, auth, hydrate, fail, demoMode });
+  driverToolsRoutes(app, { store, auth, hydrate, fail });
   app.use('/api', (req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
   app.use((e, req, res, next) => {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ') });

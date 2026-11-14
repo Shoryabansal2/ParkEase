@@ -5,7 +5,7 @@ import { mkdtemp, readdir, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../src/app.js';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 
 test('facility photo uploads validate, persist, and respect listing ownership', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'parkease-photos-'));

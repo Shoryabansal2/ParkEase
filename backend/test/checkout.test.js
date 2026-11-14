@@ -1,7 +1,7 @@
 import { TEST_PAYMENT_DETAILS } from '../../shared/payment-validation.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 import { createApp } from '../src/app.js';
 import { nextBillingMonth } from '../src/payment.js';
 
@@ -9,7 +9,7 @@ test('minute-based bookings and atomic simulated checkout', async t => {
   const store = await createStore();
   const server = createApp(store, { secret: 'checkout-test-secret', demoMode: true }).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); await store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   const driver = (await (await fetch(`${base}/auth/demo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'DRIVER' }) })).json()).token;
   async function request(path, body, method = 'POST') {

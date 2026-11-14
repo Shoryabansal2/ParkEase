@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 import { createApp } from '../src/app.js';
 import { varyDemoCapacity } from '../src/capacity.js';
 import { makeSlots } from '../src/catalog.js';
@@ -9,7 +9,7 @@ import { TEST_PAYMENT_DETAILS } from '../../shared/payment-validation.mjs';
 test('custom facility capacity, reservation protection, removal and restoration', async t => {
   const store = await createStore(), server = createApp(store, { secret: 'capacity-integration-secret' }).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); await store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   const req = async (path, token, method = 'GET', body) => { const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); return { status: response.status, data: await response.json() }; };
   const operator = (await req('/auth/demo', null, 'POST', { role: 'OPERATOR' })).data.token, driver = (await req('/auth/demo', null, 'POST', { role: 'DRIVER' })).data.token;

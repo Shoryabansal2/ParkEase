@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   vehicle VARCHAR(30) NOT NULL, startAt VARCHAR(30) NOT NULL, endAt VARCHAR(30) NOT NULL,
   total DECIMAL(10,2) NOT NULL, status ENUM('CONFIRMED','ACTIVE','COMPLETED','CANCELLED') NOT NULL,
   paymentStatus VARCHAR(30) NOT NULL, createdAt VARCHAR(30) NOT NULL,
-  checkedInAt VARCHAR(30) NULL, checkedOutAt VARCHAR(30) NULL,
+  checkedInAt VARCHAR(30) NULL, checkedOutAt VARCHAR(30) NULL, cancelledAt VARCHAR(30) NULL,
   membershipTier VARCHAR(16) NOT NULL DEFAULT 'STANDARD', baseTotal DECIMAL(10,2) NULL,
   discountAmount DECIMAL(10,2) NOT NULL DEFAULT 0, convenienceFee DECIMAL(10,2) NOT NULL DEFAULT 0, pricingSnapshot TEXT NULL,
   FOREIGN KEY (userId) REFERENCES users(id), FOREIGN KEY (facilityId) REFERENCES facilities(id),
@@ -63,4 +63,13 @@ CREATE TABLE IF NOT EXISTS pricingRules (
   startMinute INT NOT NULL, endMinute INT NOT NULL, rate DECIMAL(10,2) NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT TRUE, createdAt VARCHAR(30) NOT NULL,
   FOREIGN KEY (facilityId) REFERENCES facilities(id), INDEX pricing_facility(facilityId,enabled)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS notificationReads (
+  id VARCHAR(64) PRIMARY KEY, userId VARCHAR(64) NOT NULL, readAt VARCHAR(30) NOT NULL,
+  FOREIGN KEY (userId) REFERENCES users(id), INDEX notification_user(userId)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS parkingNotes (
+  id VARCHAR(64) PRIMARY KEY, userId VARCHAR(64) NOT NULL,
+  floor VARCHAR(60) NOT NULL DEFAULT '', landmark VARCHAR(200) NOT NULL DEFAULT '', updatedAt VARCHAR(30) NOT NULL,
+  FOREIGN KEY (id) REFERENCES bookings(id), FOREIGN KEY (userId) REFERENCES users(id)
 ) ENGINE=InnoDB;

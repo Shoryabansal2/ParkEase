@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../src/store.js';
+import { createStore } from './test-store.js';
 import { createApp } from '../src/app.js';
 import { TEST_PAYMENT_DETAILS, paymentErrors } from '../../shared/payment-validation.mjs';
 
@@ -8,7 +8,7 @@ test('administration, validated checkout, and fee accounting', async t => {
   const store = await createStore();
   const server = createApp(store, { secret: 'admin-console-tests' }).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); await store.close(); });
   const base = `http://127.0.0.1:${server.address().port}/api`;
   async function request(path, method = 'GET', body, token) {
     const r = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -48,7 +48,7 @@ test('administration, validated checkout, and fee accounting', async t => {
     assert.equal(r.data.payments.find(p => p.purpose === 'EXTENSION').amount, 20);
   });
   await t.test('server pagination remains bounded with 250 reservations and supports search/filter/sort', async () => {
-    await store.transaction(null, async tx => { for (let i = 0; i < 250; i++) await tx.insert('bookings', { ...booking, id: `TEST-${String(i).padStart(4, '0')}`, status: i % 2 ? 'CANCELLED' : 'COMPLETED', total: i, createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString() }); });
+    await store.transaction(null, async tx => { for (let i = 0; i < 250; i++) await tx.insert('bookings', { ...(await tx.get('bookings', booking.id)), id: `TEST-${String(i).padStart(4, '0')}`, status: i % 2 ? 'CANCELLED' : 'COMPLETED', total: i, createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString() }); });
     const first = (await request('/admin/manage/reservations?page=1&pageSize=10&q=TEST&sort=amount', 'GET', null, admin)).data;
     const second = (await request('/admin/manage/reservations?page=2&pageSize=10&q=TEST&sort=amount', 'GET', null, admin)).data;
     assert.equal(first.total, 250); assert.equal(first.pages, 25); assert.equal(first.items.length, 10); assert.equal(first.items[0].total, 249);
